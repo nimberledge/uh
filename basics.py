@@ -21,7 +21,7 @@ class Circle(object):
         self.breathe_state = 0
         self.acc = [0, 0]
 
-    def update(self, objects, dt=0.00001):
+    def update(self, objects, dt=0.01):
         # Acceleration update
         acc = [0, 0]
         for obj in objects:
@@ -31,8 +31,8 @@ class Circle(object):
         self.acc[0] += acc[0]
         self.acc[1] += acc[1]
 
-        x_vel = self.velocity * self.u_direction[0] + self.acc[0]
-        y_vel = self.velocity * self.u_direction[0] + self.acc[1]
+        x_vel = self.velocity * self.u_direction[0] + dt * self.acc[0]
+        y_vel = self.velocity * self.u_direction[0] + dt * self.acc[1]
         # Velocity update
         exact_x, exact_y = self.exact_xy
         exact_x += x_vel
@@ -46,11 +46,6 @@ class Circle(object):
 
     def draw(self, screen):
         if (-self.radius <= self.x < screen.get_width() + self.radius and -self.radius <= self.y < screen.get_height() + self.radius):
-            pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
-        # Stop drawing circles outside the screen ig
-        # They get deleted anyway, but if i don't draw them in black, they linger ugly-ly
-        else:
-            self.color = BLACK
             pygame.draw.circle(screen, self.color, (self.x, self.y), self.radius)
 
 
@@ -68,6 +63,9 @@ class PointMass(object):
         theta = math.acos((self.x - ellipse.x) / r)
         return [acc * math.cos(theta), acc * math.sin(theta)]
 
+    def update_position(self, x, y):
+        self.x, self.y = x, y
+
 
 
 def screen_test():
@@ -80,7 +78,7 @@ def screen_test():
     pygame.init()
     # pygame.font.init()
 
-    screen_size = (1080, 720)
+    screen_size = (1920, 1080)
     screen = pygame.display.set_mode(screen_size)
     pygame.display.set_caption("L S D")
 
@@ -92,13 +90,17 @@ def screen_test():
     done = False
     generate = False
     ellipses = []
-    c = 15                  # Spiral radius constant
+    c = 20                  # Spiral radius constant
     start = time.time()
-    gen_rate = 0.005       # Delay in seconds between drawing ellipses
+    gen_rate = 0.001       # Delay in seconds between drawing ellipses
     n = 0
-    test_mass = PointMass(screen_size[0]//2, -screen_size[1]//2, 100)
+    mass_r = 600
+    mass_theta = math.pi / 2
+    test_mass = PointMass(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2), 100)
     test_mass_2 = PointMass(screen_size[0] + 20, screen_size[1] + 20, 100)
-    objects = [test_mass]
+    mpos_mass = PointMass(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2), -1200)
+    objects = [mpos_mass, test_mass]
+    mass_angle_step = 0.01
     while not done:
         events = pygame.event.get()
         for event in events:
@@ -108,8 +110,8 @@ def screen_test():
             elif event.type == pygame.MOUSEBUTTONDOWN and not generate:
                 generate = True
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Cull the oldest ones and start again
-                hsl = (random.uniform(0, 255), random.random(), random.random())
+                # Start pattern again at new random color, within some reason
+                h, s, l = (random.uniform(0, 255), random.uniform(0.3, 0.5), random.uniform(0.35, 0.65))
                 n = 0
 
 
@@ -129,7 +131,8 @@ def screen_test():
             # color = STATIC_COL
 
             # Pick radius of circle, initial velocity
-            radius = int(random.uniform(25, 34))
+            # radius = int(random.uniform(10, 20))
+            radius = 20
             # print (color)
             v_dir = [math.cos(theta), math.sin(theta)] # Direction of velocity
             vel = 0.0005 * n
@@ -145,6 +148,17 @@ def screen_test():
             # Reset clock so that you don't generate too many
             start = time.time()
 
+        mpos = pygame.mouse.get_pos()
+        # print (mpos)
+        mpos_mass.update_position(mpos[0], mpos[1])
+        # Update the mass angle, and move the mass
+        mass_theta = mass_theta + mass_angle_step
+        if mass_theta >= 2 * math.pi:
+            mass_theta = 0
+        test_mass.update_position(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2))
+        # print ("Mass coordinates: {} {}".format(test_mass.x, test_mass.y))
+
+
         if len(ellipses) >= MOST_ELLIPSES:
             del ellipses[0]
 
@@ -155,10 +169,6 @@ def screen_test():
 
         pygame.display.flip()
     pygame.quit()
-
-def test_test():
-    print (rgb_to_hsl((24, 98, 118)))
-    print (hsl_to_rgb(rgb_to_hsl((24, 98, 118))))
 
 if __name__ == '__main__':
     screen_test()

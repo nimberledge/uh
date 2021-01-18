@@ -96,11 +96,11 @@ def screen_test():
     hue_change_rate = 0.001
 
     done = False
-    generate = False
+    generate = True
     ellipses = []
     c = 12                  # Spiral radius constant
     start = time.time()
-    gen_rate = 0.0001       # Delay in seconds between drawing ellipses
+    gen_rate = 0.00005       # Delay in seconds between drawing ellipses
     n = 0
     mass_r = 600
     mass_theta = math.pi / 2

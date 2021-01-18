@@ -10,18 +10,22 @@ class Circle(object):
     # These were planned to be ellipses but I'd have to create like a pygame rect
     # painful so i just did circles
     MASS_SCALING_FACTOR = 1
+    BREATHE_SEQUENCE = [1.0, 1.05, 1.1, 1.15, 1.1, 1.05, 1.0, 0.95, 0.9, 0.85, 0.9, 0.95]
+    BREATHE_DELAY = 0.4
 
     def __init__(self, x, y, radius, color, u_direction, velocity=0.1):
         # u_direction -> initial velocity direction
-        self.x, self.y, self.radius, self.color = x, y, radius, color
+        self.x, self.y, self.base_radius, self.color = x, y, radius, color
+        self.radius = self.base_radius
         self.exact_xy = [self.x, self.y] # Round this to update
         self.mass = self.radius * self.MASS_SCALING_FACTOR
         self.velocity = velocity # magnitude of velocity
         self.u_direction = u_direction # Initial velocity direction
         self.breathe_state = 0
         self.acc = [0, 0]
+        self.last_breath = time.time()
 
-    def update(self, objects, dt=0.01):
+    def update(self, objects, breathe_timer, dt=0.02):
         # Acceleration update
         acc = [0, 0]
         for obj in objects:
@@ -42,6 +46,10 @@ class Circle(object):
         # TODO: update the hue
         # TODO: Add a breathing effect
         # Breathing - change radius periodically
+        if breathe_timer - self.last_breath >= self.BREATHE_DELAY:
+            self.breathe_state = (self.breathe_state + 1) % len(self.BREATHE_SEQUENCE)
+            self.radius = int(self.base_radius * self.BREATHE_SEQUENCE[self.breathe_state])
+            self.last_breath = time.time()
 
 
     def draw(self, screen):
@@ -84,23 +92,24 @@ def screen_test():
 
     screen.fill(BLACK)
     # Hue, saturation, luminance
-    h,s,l = 14, 0.4, 0.5
-    hue_change_rate = 0.005
+    h,s,l = 14, 0.4, 0.55
+    hue_change_rate = 0.001
 
     done = False
     generate = False
     ellipses = []
-    c = 20                  # Spiral radius constant
+    c = 12                  # Spiral radius constant
     start = time.time()
-    gen_rate = 0.001       # Delay in seconds between drawing ellipses
+    gen_rate = 0.0001       # Delay in seconds between drawing ellipses
     n = 0
     mass_r = 600
     mass_theta = math.pi / 2
     test_mass = PointMass(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2), 100)
-    test_mass_2 = PointMass(screen_size[0] + 20, screen_size[1] + 20, 100)
-    mpos_mass = PointMass(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2), -1200)
-    objects = [mpos_mass, test_mass]
+    # test_mass_2 = PointMass(screen_size[0] + 20, screen_size[1] + 20, 100)
+    mpos_mass = PointMass(int(mass_r * math.cos(mass_theta) + screen_size[0]/2), int(mass_r * math.cos(mass_theta) + screen_size[1]/2), -1000)
+    objects = [mpos_mass]
     mass_angle_step = 0.01
+    spiral_center = (screen.get_width() / 2, screen.get_height() /2)
     while not done:
         events = pygame.event.get()
         for event in events:
@@ -111,8 +120,10 @@ def screen_test():
                 generate = True
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # Start pattern again at new random color, within some reason
-                h, s, l = (random.uniform(0, 255), random.uniform(0.3, 0.5), random.uniform(0.35, 0.65))
+                h, s, l = (random.uniform(0, 255), random.uniform(0.4, 0.5), 0.55)
                 n = 0
+                spiral_center = pygame.mouse.get_pos()
+
 
 
         if generate and (time.time()-start) >= gen_rate: # Generate more ellipses
@@ -121,9 +132,9 @@ def screen_test():
             theta = n * SPIRAL_ANGLE_RAD
             r = c * math.sqrt(n)
 
-            # Convert back, and place relative to center of screen
-            width, height = screen.get_width(), screen.get_height()
-            x, y = int(r * math.cos(theta) + width/2), int(r * math.sin(theta) + height/2)
+            # Convert back, and place relative to spiral center
+            # width, height = screen.get_width(), screen.get_height()
+            x, y = int(r * math.cos(theta) + spiral_center[0]), int(r * math.sin(theta) + spiral_center[1])
 
             # Get color in RGB
             color = colorsys.hls_to_rgb(h, l, s)
@@ -132,7 +143,8 @@ def screen_test():
 
             # Pick radius of circle, initial velocity
             # radius = int(random.uniform(10, 20))
-            radius = 20
+            # radius = int(random.uniform(1, 5))
+            radius = 6
             # print (color)
             v_dir = [math.cos(theta), math.sin(theta)] # Direction of velocity
             vel = 0.0005 * n
@@ -164,7 +176,7 @@ def screen_test():
 
         screen.fill(BLACK)
         for ellipse in ellipses:
-            ellipse.update(objects)
+            ellipse.update(objects, time.time())
             ellipse.draw(screen)
 
         pygame.display.flip()
